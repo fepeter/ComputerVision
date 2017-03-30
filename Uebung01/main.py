@@ -12,18 +12,16 @@ VerzerrungY = 0
 
 
 def calcM(Winkel=0, OffsetX=0, OffsetY=0, ZerrungX=0, ZerrungY=0, StreckungX=1, StreckungY=1):
-
-
     rotM = np.array([[math.cos(Winkel * math.pi / 180), -math.sin(Winkel * math.pi / 180)],
                      [math.sin(Winkel * math.pi / 180), math.cos(Winkel * math.pi / 180)]])
     zerM = np.array([[1, ZerrungX],
                      [ZerrungY, 1]])
-    strM =  np.array([[1.0/StreckungX, 0],
-                     [0, 1.0/StreckungY]])
+    strM = np.array([[1.0 / StreckungX, 0],
+                     [0, 1.0 / StreckungY]])
 
-    Moff = np.array([[OffsetX],[OffsetY]])
-    print(np.dot(zerM,rotM))
-    retM = np.concatenate((np.dot(strM.T,np.dot(zerM,rotM)),Moff),axis=1)
+    Moff = np.array([[OffsetX], [OffsetY]])
+    print(np.dot(zerM, rotM))
+    retM = np.concatenate((np.dot(strM.T, np.dot(zerM, rotM)), Moff), axis=1)
 
     return retM
 
