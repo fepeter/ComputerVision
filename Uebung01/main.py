@@ -26,7 +26,7 @@ def calcM(Winkel=0, OffsetX=0, OffsetY=0, ZerrungX=0, ZerrungY=0, StreckungX=1, 
     return retM
 
 
-m = calcM(0, 0, -0, -1, 0, 1, 1)
+m = calcM(0, 0, -0, -0, 0, 0.5, 1)
 
 
 def coordTransform(x, y, m):
@@ -50,17 +50,26 @@ def applyTransform(img, M, BilinearInterp):
     for y in range(0, img.shape[0]):
         for x in range(0, img.shape[1]):
             target[y, x] = getPx(x, y, img, m)
-
     print(target.shape)
-    plt.imshow(target, cmap="gray")
-    plt.show()
+    return target
 
 
 def main():
     img = scipy.misc.imread(name="gletscher.jpg", flatten=True)
+    RGBimg = scipy.misc.imread(name="ambassadors.jpg", )
     print(img.shape)
-    applyTransform(img, m, True)
+    print(RGBimg.shape)
 
+    #Transform gletscher.jpg
+    out1 = applyTransform(img, m, True)
+
+    #Transform ambassadors.jpg
+    RGBnew = RGBimg
+    for i in range(3):
+        RGBnew[:,:,i] = applyTransform(RGBimg[:,:,i], m, True)
+
+    plt.imshow(RGBnew)
+    plt.show()
 
 if __name__ == "__main__":
     main()
