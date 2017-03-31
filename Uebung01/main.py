@@ -50,7 +50,6 @@ def applyTransform(img, M, BilinearInterp):
     for y in range(0, img.shape[0]):
         for x in range(0, img.shape[1]):
             target[y, x] = getPx(x, y, img, m)
-    print(target.shape)
     return target
 
 
@@ -66,6 +65,7 @@ def main():
     #Transform ambassadors.jpg
     RGBnew = RGBimg
     for i in range(3):
+        print("Run Color" + str(i))
         RGBnew[:,:,i] = applyTransform(RGBimg[:,:,i], m, True)
 
     plt.imshow(RGBnew)
