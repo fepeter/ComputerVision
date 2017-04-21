@@ -9,26 +9,36 @@ OffsetX = 0
 OffsetY = 0
 VerzerrungX = 0
 VerzerrungY = 0
-
+StreckungX=1
+StreckungY=1
 
 def calcM(Winkel=0, OffsetX=0, OffsetY=0, ZerrungX=0, ZerrungY=0, StreckungX=1, StreckungY=1):
     rotM = np.array([[math.cos(Winkel * math.pi / 180), -math.sin(Winkel * math.pi / 180)],
                      [math.sin(Winkel * math.pi / 180), math.cos(Winkel * math.pi / 180)]])
     zerM = np.array([[1, ZerrungX],
                      [ZerrungY, 1]])
-    strM = np.array([[1.0 / StreckungX, 0],
-                     [0, 1.0 / StreckungY]])
+    strM = np.array([[StreckungX, 0],
+                     [0,StreckungY]])
 
     Moff = np.array([[OffsetX], [OffsetY]])
     print(np.dot(zerM, rotM))
-    retM = np.concatenate((np.dot(strM.T, np.dot(zerM, rotM)), Moff), axis=1)
+
+    tmp = np.dot(strM.T, np.dot(rotM,zerM))
+    faktor = 1.0/(tmp[0,0]*tmp[1,1] - tmp[1,0]*tmp[0,1])
+    retM = np.zeros([2,2])
+    retM[0, 0] = faktor * tmp[1, 1]
+    retM[1, 1] = faktor * tmp[0, 0]
+    retM[0, 1] = -faktor * tmp[0, 1]
+    retM[1, 0] = -faktor * tmp[1, 0]
+
+    retM = np.concatenate((retM, Moff), axis=1)
 
     return retM
 
 
 def coordTransform(x, y, m):
-    newX = m[0, 0] * x + m[0, 1] * y - m[0, 2]
-    newY = m[1, 0] * x + m[1, 1] * y + m[1, 2]
+    newX = m[0, 0] * (x - m[0, 2]) + m[0, 1] * (y - m[1, 2])
+    newY = m[1, 0] * (x - m[0, 2]) + m[1, 1] * (y - m[1, 2])
     return (newX, newY)
 
 
@@ -59,20 +69,32 @@ def applyTransform(img, m, BilinearInterp):
 
 
 def main():
-    m = calcM(5, 0, -0, -0, 0, 1, 1)
+    # Winkel, OffsetX, OffsetY, VerzerrungX, VerzerrungY, StreckungX=1, StreckungY=1
+    m = calcM(30, 170, 150, 1.1, 0.4, 1, 2)
+
     img = scipy.misc.imread(name="gletscher.jpg", flatten=True)
     RGBimg = scipy.misc.imread(name="ambassadors.jpg", )
     print(img.shape)
     print(RGBimg.shape)
 
-    # Transform gletscher.jpg
-    out1 = applyTransform(img, m, True)
+    #Transform gletscher.jpg
+    #out1 = applyTransform(img, m, False)
+    #plt.ion()
+    #plt.gray()
+    #plt.imshow(out1)
+    #plt.show(block=True)
 
-    # Transform ambassadors.jpg
+    #Transform ambassadors.jpg
     RGBnew = RGBimg
+    # Winkel, OffsetX, OffsetY, VerzerrungX, VerzerrungY, StreckungX=1, StreckungY=1
+    #m = calcM(30, -200, 300, 0, 0, 1, 1)
+    m = calcM(30, -500, -1500, 1.1, 0.4, 2, 2)
     for i in range(3):
         print("Run Color" + str(i))
         RGBnew[:, :, i] = applyTransform(RGBimg[:, :, i], m, False)
+
+
+
 
     plt.ion()
     plt.imshow(RGBnew)
