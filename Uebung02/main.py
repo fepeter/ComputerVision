@@ -13,34 +13,45 @@ def getPx(srcX, srcY, img):
         return 0
     return img[srcY, srcX]
 
-
 def main():
     # Übung 2
     print("Übung 2")
-    img = scipy.misc.imread(name="schraegbild_tempelhof.jpg", flatten=True)
-
     at = AffinTransformation()
 
+
+    RGBimg = scipy.misc.imread(name="schraegbild_tempelhof.jpg")
+    RGBnew = RGBimg
+
+    a = getMat()
+
+    for i in range(3):
+        print("Run Color" + str(i))
+        RGBnew[:, :, i] = transform(RGBimg[:, :, i], a)
+
+    at.plot_image(RGBnew)
+
+
+def getMat():
+    # P1
     bx1 = 312
     by1 = 432
     ox1 = 312
     oy1 = 432
-
+    # P2
     bx2 = 343
     by2 = 423
     ox2 = 343
     oy2 = 432
-
+    # P3
     bx3 = 345
     by3 = 337
     ox3 = 312
     oy3 = 337
-
+    # P4
     bx4 = 363
     by4 = 337
     ox4 = 343
     oy4 = 337
-
 
     M = np.matrix([[bx1, by1, 1, 0, 0, 0, -ox1 * bx1, -ox1 * by1],
                    [0, 0, 0, bx1, by1, 1, -oy1 * bx1, -oy1 * by1],
@@ -54,17 +65,16 @@ def main():
     Minv = inv(M)
     vx = np.matrix([ox1, oy1, ox2, oy2, ox3, oy3, ox4, oy4])
     a = Minv.dot(vx.T)
-
-    print(vx.T)
-
-
     # a enthält: a1, a2, a3, b1, b2, b3, c1, c2
 
 
-    print(getBcord(a, 1, 1))
-    print(getBcord(a, 0, 0))
-    print(getBcord(a, 2, 2))
-    print(getBcord(a, 3, 3))
+    # print(getBcord(a, 1, 1))
+    # print(getBcord(a, 0, 0))
+    # print(getBcord(a, 2, 2))
+    # print(getBcord(a, 3, 3))
+    return a
+
+def transform(img, a):
 
     dest = np.zeros(img.shape)
 
@@ -73,7 +83,8 @@ def main():
             (nx, ny) = getBcord(a, x, y)
             dest[y,x] = getPx(nx, ny, img)
 
-    at.plot_image(dest)
+    return dest
+
 
 def getBcord(aVec, bx ,by ):
     #x = (aVec[0,0]*bx + aVec[1,0]*by + aVec[2,0])/( aVec[6,0] * bx + aVec[7,0]*by + 1)
