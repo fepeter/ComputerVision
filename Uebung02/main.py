@@ -26,7 +26,7 @@ def main():
 
     for i in range(3):
         print("Run Color" + str(i))
-        RGBnew[:, :, i] = transform(RGBimg[:, :, i], a)
+        RGBnew[:, :, i] = transform(RGBimg[:, :, i], a, False)
 
     at.plot_image(RGBnew)
 
@@ -74,14 +74,24 @@ def getMat():
     # print(getBcord(a, 3, 3))
     return a
 
-def transform(img, a):
+def transform(img, a, BilinearInterp):
 
     dest = np.zeros(img.shape)
 
     for y in range(img.shape[0]):
         for x in range(img.shape[1]):
             (nx, ny) = getBcord(a, x, y)
-            dest[y,x] = getPx(nx, ny, img)
+            #dest[y,x] = getPx(nx, ny, img)
+
+            if BilinearInterp:
+                midX = int(nx + 1)
+                midY = int(ny + 1)
+                dest[y, x] = getPx(nx, ny, img) * (midX - nx) * (midY - ny) + \
+                               getPx(nx + 1, ny, img) * (nx + 1 - midX) * (midY - ny) + \
+                               getPx(nx, ny + 1, img) * (midX - nx) * (ny + 1 - midY) + \
+                               getPx(nx + 1, ny + 1, img) * (nx + 1 - midX) * (ny + 1 - midY)
+            else:
+                dest[y, x] = getPx(nx, ny, img)
 
     return dest
 
