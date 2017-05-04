@@ -6,19 +6,21 @@ import math
 import cv2
 
 
-def rotate_coords( x, y, A, ox, oy):
-    # rotiere x und y um den Mittelpunkt
-
-    x, y = np.asarray(x) - ox, np.asarray(y) - oy
-
-    l = np.matrix(np.hstack((np.ndarray.flatten(x), np.ndarray.flatten(y))))
-
-    b = np.dot(np.linalg.pinv(A).T, l)
-
-    b0 = b[0] + ox
-    b1 = b[1] + oy
-
-    return np.reshape(b0, x.shape), np.reshape(b1, y.shape)
+def getBcord(aVec, bx ,by ):
+    #x = (aVec[0,0]*bx + aVec[1,0]*by + aVec[2,0])/( aVec[6,0] * bx + aVec[7,0]*by + 1)
+    #y = (aVec[3,0]*bx + aVec[4,0]*by + aVec[5,0])/( aVec[6,0] * bx + aVec[7,0]*by + 1)
+    a1 = aVec[0, 0]
+    a2 = aVec[1, 0]
+    a3 = aVec[2, 0]
+    b1 = aVec[3, 0]
+    b2 = aVec[4, 0]
+    b3 = aVec[5, 0]
+    c1 = aVec[6, 0]
+    c2 = aVec[7, 0]
+    divisor = (b1*c2 - b2*c1)*bx + (a2*c1 - a1*c2)*by + a1*b2 - a2*b1
+    x = (b2 - c2 * b3) * bx + (a3 * c2 - a2) * by + a2 * b3 - a3 * b2
+    y = (b3 * c1 - b1) * bx + (a1 - a3 * c1) * by + a3 * b1 - a1 * b3
+    return (x/divisor, y/divisor)
 
 def f_affin_transformation(A, a0, src, method, rgb):
     # Bildmittelpunkt
@@ -33,16 +35,19 @@ def f_affin_transformation(A, a0, src, method, rgb):
     # Eckpunkte des transformierten Bildes berechnen
     x = np.array([0, sw, sw, 0]) - ox
     y = np.array([0, 0, sh, sh]) - oy
-    corners = np.dot(A, np.matrix(np.hstack((x, y))))
+    print(x,y)
+    #corners = np.dot(A, np.matrix(np.hstack((x, y))))
+    corners = getBcord
+
     cx = corners[0] + ox
     cy = corners[1] + oy
-
+    print(cx, cy)
     # Größe des neuen Bildes
     dw, dh = (int(np.ceil(c.max() - c.min())) for c in (cx, cy))
 
     dx, dy = np.meshgrid(np.arange(dw), np.arange(dh))
 
-    sx, sy = rotate_coords(dx + cx.min(), dy + cy.min(), A, ox, oy)
+    (sx, sy) = getBcord(A, dx + cx.min(), dy + cy.min())
 
     if method == 'nn':
         sx, sy = sx.round().astype(int), sy.round().astype(int)
@@ -65,7 +70,6 @@ def f_affin_transformation(A, a0, src, method, rgb):
     # Maske für gültige Koordinaten
     mask = (0 <= sx) & (sx < sw) & (0 <= sy) & (sy < sh)
 
-    print(mask)
     if rgb:
         dest = np.empty(shape=(dh, dw, 3), dtype=src.dtype)
     else:
@@ -114,55 +118,47 @@ def buildMat(WorldPointlist, PicPointlist):
     Minv = np.linalg.pinv(M)
     a = Minv.dot(vx)
 
-    print(M, vx, a)
+
     return (M, vx, a)
 
 def main():
     print("Aufgabe 3")
     wp =[]
-    bp = []
+    bp2 = []
+    bp1 = []
+    img1 = scipy.misc.imread(name="imgs\IMG_20170504_131710_001.jpg")
+    img2 = scipy.misc.imread(name="imgs\IMG_20170504_131710_020.jpg")
+
+
+    bp1.append((2696, 646))
+    bp1.append((4140, 634))
+    bp1.append((3931, 2340))
+    bp1.append((2678, 2481))
+
+    wp.append((300, 0))
+    wp.append((2950, 50))
+    wp.append((2970, 3900))
+    wp.append((40, 4290))
+
+    bp2.append((1506, 765))
+    bp2.append((2894, 786))
+    bp2.append((2800, 2447))
+    bp2.append((1578, 2598))
 
 
 
-    # P1
-    bx1 = 312
-    by1 = 432
-    ox1 = 312
-    oy1 = 432
-    # P2
-    bx2 = 343
-    by2 = 423
-    ox2 = 343
-    oy2 = 432
-    # P3
-    bx3 = 345
-    by3 = 337
-    ox3 = 312
-    oy3 = 337
-    # P4
-    bx4 = 363
-    by4 = 337
-    ox4 = 343
-    oy4 = 337
+    (M1, _, a1) = buildMat(wp, bp1)
+    print(a1)
+    (M2, _, a2) = buildMat(wp, bp2)
 
-    bp.append((bx1, by1))
-    bp.append((bx2, by2))
-    bp.append((bx3, by3))
-    bp.append((bx4, by4))
+    newImg1 = f_affin_transformation(a1, 0, img1, 'nn', True)
+    newImg2 = f_affin_transformation(a2, 0, img2, 'nn', True)
 
-    wp.append((ox1, oy1))
-    wp.append((ox2, oy2))
-    wp.append((ox3, oy3))
-    wp.append((ox4, oy4))
-
-    (_, _, a) = buildMat(wp, bp)
-    RGBimg = scipy.misc.imread(name="schraegbild_tempelhof.jpg")
-
-    newImg = f_affin_transformation(a, 0, RGBimg, 'nn', True)
-
-    plt.imshow(newImg)
+    plt.imshow(newImg1)
     plt.show()
 
+    plt.imshow(newImg2)
+    plt.show()
 
 if __name__ == "__main__":
     main()
