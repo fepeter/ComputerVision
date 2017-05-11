@@ -5,6 +5,16 @@ import matplotlib.pyplot as plt
 import math
 import cv2
 
+def stitch(img1, img2, PassIMG1, PassIMG2):
+    #Create Image in size of img1 and img2
+    maxY = max(img1.shape[0], img2.shape[0])
+
+    stitched = np.zeros([maxY, img2.shape[1] + img1.shape[1], 3])
+    print(stitched.shape)
+    #stitched = np.insert(stitched,0, img1, axis=1)
+    stitched[0:img1.shape[0], 0:img1.shape[1]]=img1
+    stitched[0:img2.shape[0], img1.shape[1]:]=img2
+    return stitched
 
 def getBcord(aVec, bx ,by ):
     #x = (aVec[0,0]*bx + aVec[1,0]*by + aVec[2,0])/( aVec[6,0] * bx + aVec[7,0]*by + 1)
@@ -22,7 +32,7 @@ def getBcord(aVec, bx ,by ):
     y = (b3 * c1 - b1) * bx + (a1 - a3 * c1) * by + a3 * b1 - a1 * b3
     return (x/divisor, y/divisor)
 
-def f_affin_transformation(A, a0, src, method, rgb):
+def transformation(A, a0, src, method, rgb):
     # Bildmittelpunkt
     ox = src.shape[1] // 2
     oy = src.shape[0] // 2
@@ -36,8 +46,10 @@ def f_affin_transformation(A, a0, src, method, rgb):
     x = np.array([0, sw, sw, 0]) - ox
     y = np.array([0, 0, sh, sh]) - oy
     print(x,y)
-    #corners = np.dot(A, np.matrix(np.hstack((x, y))))
-    corners = getBcord
+    corners = np.dot(A, np.matrix(np.hstack((x, y))))
+
+    #TODO
+    #corners = getBcord()
 
     cx = corners[0] + ox
     cy = corners[1] + oy
@@ -124,11 +136,13 @@ def buildMat(WorldPointlist, PicPointlist):
 def main():
     print("Aufgabe 3")
     wp =[]
+    wp2 = []
     bp2 = []
     bp1 = []
+    bp3 = []
     img1 = scipy.misc.imread(name="imgs\IMG_20170504_131710_001.jpg")
     img2 = scipy.misc.imread(name="imgs\IMG_20170504_131710_020.jpg")
-
+    img3 = scipy.misc.imread(name="schraegbild_tempelhof.jpg")
 
     bp1.append((2696, 646))
     bp1.append((4140, 634))
@@ -145,20 +159,64 @@ def main():
     bp2.append((2800, 2447))
     bp2.append((1578, 2598))
 
+    # P1
+    bx1 = 312
+    by1 = 432
+    ox1 = 312
+    oy1 = 432
+    # P2
+    bx2 = 343
+    by2 = 423
+    ox2 = 343
+    oy2 = 432
+    # P3
+    bx3 = 345
+    by3 = 337
+    ox3 = 312
+    oy3 = 337
+    # P4
+    bx4 = 363
+    by4 = 337
+    ox4 = 343
+    oy4 = 337
+
+    bp3.append((bx1, by1))
+    bp3.append((bx2, by2))
+    bp3.append((bx3, by3))
+    bp3.append((bx4, by4))
+
+    wp2.append((ox1, oy1))
+    wp2.append((ox2, oy2))
+    wp2.append((ox3, oy3))
+    wp2.append((ox4, oy4))
+
+
+
 
 
     (M1, _, a1) = buildMat(wp, bp1)
-    print(a1)
+    #print(a1)
     (M2, _, a2) = buildMat(wp, bp2)
+    #(M3, _, a3) = buildMat(wp2, bp3)
 
-    newImg1 = f_affin_transformation(a1, 0, img1, 'nn', True)
-    newImg2 = f_affin_transformation(a2, 0, img2, 'nn', True)
+
+    newImg1 = transformation(a1, 0, img1, 'nn', True)
+    newImg2 = transformation(a2, 0, img2, 'nn', True)
+
+    #newImg3 =  transformation(a3,0,img3,'nn', True)
 
     plt.imshow(newImg1)
     plt.show()
-
     plt.imshow(newImg2)
     plt.show()
+
+    #plt.imshow(newImg3)
+    #plt.show()
+
+    stitched = stitch(newImg1, newImg2, bp1, bp2)
+    plt.imshow(stitched)
+    plt.show()
+
 
 if __name__ == "__main__":
     main()
