@@ -3,7 +3,7 @@ import scipy.misc
 import scipy
 import matplotlib.pyplot as plt
 import math
-import cv2
+#import cv2
 
 def stitch(img1, img2, PassIMG1, PassIMG2):
     #Create Image in size of img1 and img2
@@ -32,10 +32,23 @@ def getBcord(aVec, bx ,by ):
     y = (b3 * c1 - b1) * bx + (a1 - a3 * c1) * by + a3 * b1 - a1 * b3
     return (x/divisor, y/divisor)
 
+def getOcord(aVec, bx, by):
+    a1 = aVec[0, 0]
+    a2 = aVec[1, 0]
+    a3 = aVec[2, 0]
+    b1 = aVec[3, 0]
+    b2 = aVec[4, 0]
+    b3 = aVec[5, 0]
+    c1 = aVec[6, 0]
+    c2 = aVec[7, 0]
+    x = (a1 * bx + a2 * by + a3) / (c1 * bx + c2 * by + 1)
+    y = (b1 * bx + b2 * by + b3) / (c1 * bx + c2 * by + 1)
+    return (x,y)
+
 def transformation(A, a0, src, method, rgb):
     # Bildmittelpunkt
-    ox = src.shape[1] // 2
-    oy = src.shape[0] // 2
+    ox = 0#src.shape[1] // 2
+    oy = 0#src.shape[0] // 2
 
     if rgb:
         sh, sw, sd = src.shape
@@ -45,21 +58,29 @@ def transformation(A, a0, src, method, rgb):
     # Eckpunkte des transformierten Bildes berechnen
     x = np.array([0, sw, sw, 0]) - ox
     y = np.array([0, 0, sh, sh]) - oy
-    print(x,y)
-    corners = np.dot(A, np.matrix(np.hstack((x, y))))
+    print(x, y)
 
+    corners = getOcord(A, x, y)
+    print(getOcord(A, x, y))
     #TODO
     #corners = getBcord()
-
+    print("corners", corners)
+    print(corners[0])
     cx = corners[0] + ox
     cy = corners[1] + oy
-    print(cx, cy)
+    print("cx", cx, "cy", cy)
+
     # Größe des neuen Bildes
     dw, dh = (int(np.ceil(c.max() - c.min())) for c in (cx, cy))
-
+    print(getBcord(A, 0 + cx.min(), 0+ cy.min()))
+    print(getBcord(A, dw + cx.min(), 0+ cy.min()))
+    print(getBcord(A, dw + cx.min(), dh+ cy.min()))
+    print(getBcord(A, 0 + cx.min(), dh+ cy.min()))
+    print("DH:", dh, "DW", dw)
     dx, dy = np.meshgrid(np.arange(dw), np.arange(dh))
 
     (sx, sy) = getBcord(A, dx + cx.min(), dy + cy.min())
+
 
     if method == 'nn':
         sx, sy = sx.round().astype(int), sy.round().astype(int)
@@ -149,10 +170,10 @@ def main():
     bp1.append((3931, 2340))
     bp1.append((2678, 2481))
 
-    wp.append((300, 0))
-    wp.append((2950, 50))
-    wp.append((2970, 3900))
-    wp.append((40, 4290))
+    wp.append((0, 0))
+    wp.append((2950/2, 50/2))
+    wp.append((2970/2, 3900/2))
+    wp.append((40/2, 4290/2))
 
     bp2.append((1506, 765))
     bp2.append((2894, 786))
@@ -213,9 +234,9 @@ def main():
     #plt.imshow(newImg3)
     #plt.show()
 
-    stitched = stitch(newImg1, newImg2, bp1, bp2)
-    plt.imshow(stitched)
-    plt.show()
+    #stitched = stitch(newImg1, newImg2, bp1, bp2)
+    #plt.imshow(stitched)
+    #plt.show()
 
 
 if __name__ == "__main__":
