@@ -5,18 +5,27 @@ import matplotlib.pyplot as plt
 from time import *
 import math
 #import cv2
+from skimage.feature.tests.test_orb import img
 
 
+def stitch(img1, img2, offsetX1, offsetX2, offsetY1, offsetY2):
 
-def stitch(img1, img2, PassIMG1, PassIMG2):
     #Create Image in size of img1 and img2
-    maxY = max(img1.shape[0], img2.shape[0])
+    maxY = max(img1.shape[0] + offsetY1, img2.shape[0] + offsetY2)
+    maxX = max(img1.shape[1] + offsetX1, img2.shape[1] + offsetX2)
 
-    stitched = np.zeros([maxY, img2.shape[1] + img1.shape[1], 3], dtype=np.uint8)
+    minY = min(offsetY1, offsetY2)
+    minX = min(offsetX1, offsetX2)
+
+    stitched = np.zeros((maxY - minY, maxX - minX, 4), dtype=np.uint8) # 4 Dimensionen, r,g,b,a
+    stitched[:, :, 3] = 255
     #print(stitched.shape)
     #stitched = np.insert(stitched,0, img1, axis=1)
-    stitched[0:img1.shape[0], 0:img1.shape[1]]=img1
-    stitched[0:img2.shape[0], img1.shape[1]:]=img2
+
+    # bsp mit Y: der oberste Wert ist 0. Wenn ein Bild im negativen bereich ist muss trotzdem 0 raus kommen
+    # d.h. offsetY-minY
+    stitched[offsetY1 - minY: img1.shape[0] + offsetY1 - minY, offsetX1 - minX: img1.shape[1] + offsetX1 - minX, 0] = img1[:,:,0]
+    stitched[offsetY2 - minY: img2.shape[0] + offsetY2 - minY, offsetX2 - minX: img2.shape[1] + offsetX2 - minX, 1] = img2[:,:,1]
     return stitched
 
 def getBcord(aVec, bx ,by ):
@@ -75,11 +84,21 @@ def transformation(A, a0, src, method, rgb):
 
     # Größe des neuen Bildes
     dw, dh = (int(np.ceil(c.max() - c.min())) for c in (cx, cy))
+    offsetX, offsetY = (int(np.ceil(c.min())) for c in (cx, cy))
+    print(offsetX, offsetY)
     #print(getBcord(A, 0 + cx.min(), 0+ cy.min()))
     #print(getBcord(A, dw + cx.min(), 0+ cy.min()))
     #print(getBcord(A, dw + cx.min(), dh+ cy.min()))
     #print(getBcord(A, 0 + cx.min(), dh+ cy.min()))
     #print("DH:", dh, "DW", dw)
+
+    # distanz von der Bildmitte entspricht gewichtung (eigentlich Alpha Kanal.)
+    distance = np.ones((sh, sw)) * 255
+    dx, dy = np.meshgrid(np.arange(sh), np.arange(sw))
+
+
+
+    #meshgrid für Bildkopie vorbereiten
     dx, dy = np.meshgrid(np.arange(dw), np.arange(dh))
 
     (sx, sy) = getBcord(A, dx + cx.min(), dy + cy.min())
@@ -107,11 +126,18 @@ def transformation(A, a0, src, method, rgb):
     mask = (0 <= sx) & (sx < sw) & (0 <= sy) & (sy < sh)
 
     if rgb:
-        dest = np.empty(shape=(dh, dw, 3), dtype=src.dtype)
+        dest = np.empty(shape=(dh, dw, 4), dtype=src.dtype)
     else:
-        dest = np.empty(shape=(dh, dw), dtype=src.dtype)
+        dest = np.empty(shape=(dh, dw, 2), dtype=src.dtype)
+
     if method == 'nn':
-        dest[dy[mask], dx[mask]] = src[sy[mask], sx[mask]]
+        if rgb:
+            dest[dy[mask], dx[mask], 0:3] = src[sy[mask], sx[mask]]
+            dest[dy[mask], dx[mask], 3] = distance[sy[mask], sx[mask]]
+        else:
+            dest[dy[mask], dx[mask], 0] = src[sy[mask], sx[mask],:]
+            dest[dy[mask], dx[mask], 1] = distance[sy[mask], sx[mask]]
+
     else:
         mask_flattened = (0 <= p1[0]) & (p1[0] < sw) & (0 <= p1[1]) & (p1[1] < sh) & \
                          (0 <= p2[0]) & (p2[0] < sw) & (0 <= p2[1]) & (p2[1] < sh) & \
@@ -132,11 +158,11 @@ def transformation(A, a0, src, method, rgb):
                                    a1[mask_flattened] * src[p4[1][mask_flattened], [p4[0][mask_flattened]]]
     # Fill invalid coordinates.
     if rgb:
-        dest[dy[~mask], dx[~mask]] = [0, 0, 0]
+        dest[dy[~mask], dx[~mask]] = [0, 0, 0, 255]
     else:
-        dest[dy[~mask], dx[~mask]] = 0
+        dest[dy[~mask], dx[~mask]] = [0, 255]
 
-    return dest
+    return (dest, offsetX, offsetY)
 
 def buildMat(WorldPointlist, PicPointlist):
     M = []
@@ -173,10 +199,11 @@ def main():
     bp1.append((3931, 2340))
     bp1.append((2678, 2481))
 
+    wpDiv = 6
     wp.append((0, 0))
-    wp.append((2950/2, 50/2))
-    wp.append((2970/2, 3900/2))
-    wp.append((40/2, 4290/2))
+    wp.append((2950/wpDiv, 50/wpDiv))
+    wp.append((2970/wpDiv, 3900/wpDiv))
+    wp.append((40/wpDiv, 4290/wpDiv))
 
     bp2.append((1506, 765))
     bp2.append((2894, 786))
@@ -200,12 +227,12 @@ def main():
 
 
     t1=clock()
-    newImg1 = transformation(a1, 0, img1, 'nn', True)
+    (newImg1, offsetX1, offsetY1) = transformation(a1, 0, img1, 'nn', True)
     t2 = clock()
     print("Transform IMG1 in ", t2 - t1)
 
     t1 = clock()
-    newImg2 = transformation(a2, 0, img2, 'nn', True)
+    (newImg2, offsetX2, offsetY2) = transformation(a2, 0, img2, 'nn', True)
     t2 = clock()
     print("Transform IMG2 in ", t2 - t1)
 
@@ -218,16 +245,16 @@ def main():
         xn.append(xtemp)
         yn.append(ytemp)
     print(xn,yn)
-    plt.scatter(xn, yn, c='r', s=20)
+    #plt.scatter(xn, yn, c='r', s=20)
 
-    plt.imshow(newImg1)
-    plt.show()
-    plt.imshow(newImg2)
-    plt.show()
+    #plt.imshow(newImg1)
+    #plt.show()
+    #plt.imshow(newImg2)
+    #plt.show()
 
 
     t1 = clock()
-    stitched = stitch(newImg1, newImg2, bp1, bp2)
+    stitched = stitch(newImg1, newImg2, offsetX1, offsetX2, offsetY1, offsetY2)
     t2 = clock()
     print("Stitch IMGs in ", t2 - t1)
 
