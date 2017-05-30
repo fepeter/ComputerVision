@@ -2,15 +2,18 @@ import numpy as np
 import scipy.misc
 import scipy
 import matplotlib.pyplot as plt
+from time import *
 import math
 #import cv2
+
+
 
 def stitch(img1, img2, PassIMG1, PassIMG2):
     #Create Image in size of img1 and img2
     maxY = max(img1.shape[0], img2.shape[0])
 
-    stitched = np.zeros([maxY, img2.shape[1] + img1.shape[1], 3])
-    print(stitched.shape)
+    stitched = np.zeros([maxY, img2.shape[1] + img1.shape[1], 3], dtype=np.uint8)
+    #print(stitched.shape)
     #stitched = np.insert(stitched,0, img1, axis=1)
     stitched[0:img1.shape[0], 0:img1.shape[1]]=img1
     stitched[0:img2.shape[0], img1.shape[1]:]=img2
@@ -61,22 +64,22 @@ def transformation(A, a0, src, method, rgb):
     print(x, y)
 
     corners = getOcord(A, x, y)
-    print(getOcord(A, x, y))
+    #print(getOcord(A, x, y))
     #TODO
     #corners = getBcord()
-    print("corners", corners)
-    print(corners[0])
+    #print("corners", corners)
+    #print(corners[0])
     cx = corners[0] + ox
     cy = corners[1] + oy
-    print("cx", cx, "cy", cy)
+    #print("cx", cx, "cy", cy)
 
     # Größe des neuen Bildes
     dw, dh = (int(np.ceil(c.max() - c.min())) for c in (cx, cy))
-    print(getBcord(A, 0 + cx.min(), 0+ cy.min()))
-    print(getBcord(A, dw + cx.min(), 0+ cy.min()))
-    print(getBcord(A, dw + cx.min(), dh+ cy.min()))
-    print(getBcord(A, 0 + cx.min(), dh+ cy.min()))
-    print("DH:", dh, "DW", dw)
+    #print(getBcord(A, 0 + cx.min(), 0+ cy.min()))
+    #print(getBcord(A, dw + cx.min(), 0+ cy.min()))
+    #print(getBcord(A, dw + cx.min(), dh+ cy.min()))
+    #print(getBcord(A, 0 + cx.min(), dh+ cy.min()))
+    #print("DH:", dh, "DW", dw)
     dx, dy = np.meshgrid(np.arange(dw), np.arange(dh))
 
     (sx, sy) = getBcord(A, dx + cx.min(), dy + cy.min())
@@ -157,13 +160,13 @@ def buildMat(WorldPointlist, PicPointlist):
 def main():
     print("Aufgabe 3")
     wp =[]
-    wp2 = []
+
     bp2 = []
     bp1 = []
-    bp3 = []
+
     img1 = scipy.misc.imread(name="imgs\IMG_20170504_131710_001.jpg")
     img2 = scipy.misc.imread(name="imgs\IMG_20170504_131710_020.jpg")
-    img3 = scipy.misc.imread(name="schraegbild_tempelhof.jpg")
+
 
     bp1.append((2696, 646))
     bp1.append((4140, 634))
@@ -180,63 +183,57 @@ def main():
     bp2.append((2800, 2447))
     bp2.append((1578, 2598))
 
-    # P1
-    bx1 = 312
-    by1 = 432
-    ox1 = 312
-    oy1 = 432
-    # P2
-    bx2 = 343
-    by2 = 423
-    ox2 = 343
-    oy2 = 432
-    # P3
-    bx3 = 345
-    by3 = 337
-    ox3 = 312
-    oy3 = 337
-    # P4
-    bx4 = 363
-    by4 = 337
-    ox4 = 343
-    oy4 = 337
-
-    bp3.append((bx1, by1))
-    bp3.append((bx2, by2))
-    bp3.append((bx3, by3))
-    bp3.append((bx4, by4))
-
-    wp2.append((ox1, oy1))
-    wp2.append((ox2, oy2))
-    wp2.append((ox3, oy3))
-    wp2.append((ox4, oy4))
+    plt.imshow(img1)
+    x, y = zip(*bp1)
+    plt.scatter(x, y, c='r', s=20)
+    plt.show()
 
 
-
-
-
+    t1 = clock()
     (M1, _, a1) = buildMat(wp, bp1)
+    t2 = clock()
+
+    print("Build Mat in ", t2-t1)
+
     #print(a1)
     (M2, _, a2) = buildMat(wp, bp2)
-    #(M3, _, a3) = buildMat(wp2, bp3)
 
 
+    t1=clock()
     newImg1 = transformation(a1, 0, img1, 'nn', True)
-    newImg2 = transformation(a2, 0, img2, 'nn', True)
+    t2 = clock()
+    print("Transform IMG1 in ", t2 - t1)
 
-    #newImg3 =  transformation(a3,0,img3,'nn', True)
+    t1 = clock()
+    newImg2 = transformation(a2, 0, img2, 'nn', True)
+    t2 = clock()
+    print("Transform IMG2 in ", t2 - t1)
+
+    # zeichne passpunkte mit rein
+    xn=[]
+    yn=[]
+    for x in bp1:
+        print(x[0],x[1])
+        xtemp , ytemp = getBcord(a1, x[0], x[1] )
+        xn.append(xtemp)
+        yn.append(ytemp)
+    print(xn,yn)
+    plt.scatter(xn, yn, c='r', s=20)
 
     plt.imshow(newImg1)
     plt.show()
     plt.imshow(newImg2)
     plt.show()
 
-    #plt.imshow(newImg3)
-    #plt.show()
 
-    #stitched = stitch(newImg1, newImg2, bp1, bp2)
-    #plt.imshow(stitched)
-    #plt.show()
+    t1 = clock()
+    stitched = stitch(newImg1, newImg2, bp1, bp2)
+    t2 = clock()
+    print("Stitch IMGs in ", t2 - t1)
+
+    plt.gray()
+    plt.imshow(stitched)
+    plt.show()
 
 
 if __name__ == "__main__":
