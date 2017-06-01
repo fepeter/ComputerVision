@@ -3,29 +3,65 @@ import scipy.misc
 import scipy
 import matplotlib.pyplot as plt
 from time import *
+from operator import itemgetter
 import math
 #import cv2
 from skimage.feature.tests.test_orb import img
 
 
-def stitch(img1, img2, offsetX1, offsetX2, offsetY1, offsetY2):
-
+def stitch(ImageList):
+    #img1, img2, offsetX1, offsetX2, offsetY1, offsetY2
     #Create Image in size of img1 and img2
-    maxY = max(img1.shape[0] + offsetY1, img2.shape[0] + offsetY2)
-    maxX = max(img1.shape[1] + offsetX1, img2.shape[1] + offsetX2)
 
-    minY = min(offsetY1, offsetY2)
-    minX = min(offsetX1, offsetX2)
+    #Get Max/Min Values
+    maxX=0
+    maxY=0
+
+    #getMaxX
+    for item in ImageList:
+        value = item[0].shape[0] + item[2]
+        if(maxY < value ):
+            maxY = value
+
+    # getMaxX
+    for item in ImageList:
+        value = item[0].shape[1] + item[1]
+        if (maxX < value):
+            maxX = value
+
+    minY = 0
+    minX = 0
+
+    # getMinX
+    for item in ImageList:
+        value = item[2]
+        if (minY > value):
+            minY = value
+
+    # getMinX
+    for item in ImageList:
+        value = item[1]
+        if (minX > value):
+            minX = value
 
     stitched = np.zeros((maxY - minY, maxX - minX, 4), dtype=np.uint8) # 4 Dimensionen, r,g,b,a
-    stitched[:, :, 3] = 255
+
     #print(stitched.shape)
     #stitched = np.insert(stitched,0, img1, axis=1)
 
     # bsp mit Y: der oberste Wert ist 0. Wenn ein Bild im negativen bereich ist muss trotzdem 0 raus kommen
     # d.h. offsetY-minY
-    stitched[offsetY1 - minY: img1.shape[0] + offsetY1 - minY, offsetX1 - minX: img1.shape[1] + offsetX1 - minX, 0] = img1[:,:,0]
-    stitched[offsetY2 - minY: img2.shape[0] + offsetY2 - minY, offsetX2 - minX: img2.shape[1] + offsetX2 - minX, 1] = img2[:,:,1]
+
+    for (img, offX, offY) in ImageList:
+        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 0] = img[:, :, 0] * img[:, :, 3]
+        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 1] = img[:, :, 1] * img[:, :, 3]
+        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 2] = img[:, :, 2] * img[:, :, 3]
+        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 3] += img[:,:,3]
+
+        stitched[:, :, 0] = stitched[:, :, 0] / (stitched[:, :, 3] / 255.0)
+        stitched[:, :, 1] = stitched[:, :, 1] / (stitched[:, :, 3] / 255.0)
+        stitched[:, :, 2] = stitched[:, :, 2] / (stitched[:, :, 3] / 255.0)
+        stitched[:, :, 3] = 255
     return stitched
 
 def getBcord(aVec, bx ,by ):
@@ -189,9 +225,12 @@ def main():
 
     bp2 = []
     bp1 = []
+    bp3 = []
 
     img1 = scipy.misc.imread(name="imgs\IMG_20170504_131710_001.jpg")
-    img2 = scipy.misc.imread(name="imgs\IMG_20170504_131710_020.jpg")
+    img2 = scipy.misc.imread(name="imgs\IMG_20170504_131710_010.jpg")
+    img3 = scipy.misc.imread(name="imgs\IMG_20170504_131710_020.jpg")
+
 
 
     bp1.append((2696, 646))
@@ -205,15 +244,20 @@ def main():
     wp.append((2970/wpDiv, 3900/wpDiv))
     wp.append((40/wpDiv, 4290/wpDiv))
 
-    bp2.append((1506, 765))
-    bp2.append((2894, 786))
-    bp2.append((2800, 2447))
-    bp2.append((1578, 2598))
+    bp2.append((2031, 727))
+    bp2.append((3427, 743))
+    bp2.append((3285, 2427))
+    bp2.append((2058, 2558))
 
-    plt.imshow(img1)
-    x, y = zip(*bp1)
-    plt.scatter(x, y, c='r', s=20)
-    plt.show()
+    bp3.append((1506, 765))
+    bp3.append((2894, 786))
+    bp3.append((2800, 2447))
+    bp3.append((1578, 2598))
+
+    #plt.imshow(img1)
+    #x, y = zip(*bp1)
+    #plt.scatter(x, y, c='r', s=20)
+    #plt.show()
 
 
     t1 = clock()
@@ -224,37 +268,32 @@ def main():
 
     #print(a1)
     (M2, _, a2) = buildMat(wp, bp2)
+    (M3, _, a3) = buildMat(wp, bp3)
 
-
+    ImageList = []
     t1=clock()
-    (newImg1, offsetX1, offsetY1) = transformation(a1, 0, img1, 'nn', True)
+    ImageList.append( transformation(a1, 0, img1, 'nn', True))
     t2 = clock()
     print("Transform IMG1 in ", t2 - t1)
 
     t1 = clock()
-    (newImg2, offsetX2, offsetY2) = transformation(a2, 0, img2, 'nn', True)
+    ImageList.append( transformation(a2, 0, img2, 'nn', True))
     t2 = clock()
     print("Transform IMG2 in ", t2 - t1)
 
-    # zeichne passpunkte mit rein
-    xn=[]
-    yn=[]
-    for x in bp1:
-        print(x[0],x[1])
-        xtemp , ytemp = getBcord(a1, x[0], x[1] )
-        xn.append(xtemp)
-        yn.append(ytemp)
-    print(xn,yn)
-    #plt.scatter(xn, yn, c='r', s=20)
+    t1 = clock()
+    ImageList.append(transformation(a3, 0, img3, 'nn', True))
+    t2 = clock()
+    print("Transform IMG3 in ", t2 - t1)
 
-    #plt.imshow(newImg1)
-    #plt.show()
-    #plt.imshow(newImg2)
-    #plt.show()
+
+
+
 
 
     t1 = clock()
-    stitched = stitch(newImg1, newImg2, offsetX1, offsetX2, offsetY1, offsetY2)
+    #stitched = stitch(newImg1, newImg2, new, offsetX1, offsetX2, offsetY1, offsetY2)
+    stitched = stitch(ImageList)
     t2 = clock()
     print("Stitch IMGs in ", t2 - t1)
 
