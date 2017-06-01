@@ -118,7 +118,7 @@ def transformation(A, a0, src, method, rgb):
     cy = corners[1] + oy
     #print("cx", cx, "cy", cy)
 
-    # Größe des neuen Bildes
+    # Groesse des neuen Bildes
     dw, dh = (int(np.ceil(c.max() - c.min())) for c in (cx, cy))
     offsetX, offsetY = (int(np.ceil(c.min())) for c in (cx, cy))
     print(offsetX, offsetY)
@@ -129,10 +129,11 @@ def transformation(A, a0, src, method, rgb):
     #print("DH:", dh, "DW", dw)
 
     # distanz von der Bildmitte entspricht gewichtung (eigentlich Alpha Kanal.)
-    distance = np.ones((sh, sw)) * 255
-    dx, dy = np.meshgrid(np.arange(sh), np.arange(sw))
-
-
+    distance = np.ones((sh, sw))
+    it = np.nditer(distance, op_flags=['readwrite'], flags=['multi_index'])
+    while not it.finished:
+        it[0] = (0.5-math.fabs(it.multi_index[0] - (sh/2))/sh) * (0.5-math.fabs(it.multi_index[1] - (sw/2))/sw) * 4
+        it.iternext()
 
     #meshgrid für Bildkopie vorbereiten
     dx, dy = np.meshgrid(np.arange(dw), np.arange(dh))
