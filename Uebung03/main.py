@@ -6,7 +6,32 @@ from time import *
 import math
 #import cv2
 from skimage.feature.tests.test_orb import img
+print("Calculatin Distance Pic")
+t1 = clock()
 
+sh = 3480
+sw = 4640
+
+distance = np.ones((sh, sw))
+xLine = np.ones((1, sw))
+yLine = np.ones((sh, 1))
+for i in range(sw):
+    xLine[0,i] = ((sw / 2) - i)
+
+for i in range(sh):
+    yLine[i,0] = ((sh / 2) - i)
+
+xLine = (sw/2)-xLine.__abs__()
+yLine = (sh/2)-yLine.__abs__()
+
+xLine /= (sh/2)
+yLine /= (sw/2)
+
+distance[range(sh)] = xLine
+
+distance[:, range(sw)] *= yLine
+t2 = clock()
+print("Calculatin Distance done in ", t2-t1)
 
 def stitch(img1, img2, offsetX1, offsetX2, offsetY1, offsetY2):
 
@@ -93,11 +118,8 @@ def transformation(A, a0, src, method, rgb):
     #print("DH:", dh, "DW", dw)
 
     # distanz von der Bildmitte entspricht gewichtung (eigentlich Alpha Kanal.)
-    distance = np.ones((sh, sw))
-    it = np.nditer(distance, op_flags=['readwrite'], flags=['multi_index'])
-    while not it.finished:
-        it[0] = (0.5-math.fabs(it.multi_index[0] - (sh/2))/sh) * (0.5-math.fabs(it.multi_index[1] - (sw/2))/sw) * 4
-        it.iternext()
+
+
 
     #meshgrid für Bildkopie vorbereiten
     dx, dy = np.meshgrid(np.arange(dw), np.arange(dh))
@@ -185,6 +207,9 @@ def buildMat(WorldPointlist, PicPointlist):
     return (M, vx, a)
 
 def main():
+    plt.imshow(distance)
+    plt.show()
+
     print("Aufgabe 3")
     wp =[]
 
