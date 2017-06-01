@@ -3,11 +3,20 @@ import scipy.misc
 import scipy
 import matplotlib.pyplot as plt
 from time import *
-from operator import itemgetter
+
 import math
-#import cv2
+
 from skimage.feature.tests.test_orb import img
 
+print("Calculating alpha factor")
+sh = 3480
+sw=4640
+distance = np.ones((sh, sw))
+it = np.nditer(distance, op_flags=['readwrite'], flags=['multi_index'])
+while not it.finished:
+    it[0] = (0.5 - math.fabs(it.multi_index[0] - (sh / 2)) / sh) * (
+    0.5 - math.fabs(it.multi_index[1] - (sw / 2)) / sw) * 4 * 255
+    it.iternext()
 
 def stitch(ImageList):
     #img1, img2, offsetX1, offsetX2, offsetY1, offsetY2
@@ -44,25 +53,28 @@ def stitch(ImageList):
         if (minX > value):
             minX = value
 
-    stitched = np.zeros((maxY - minY, maxX - minX, 4), dtype=np.uint8) # 4 Dimensionen, r,g,b,a
+    stitched = np.zeros((maxY - minY, maxX - minX, 4), dtype=np.float32) # 4 Dimensionen, r,g,b,a
 
     #print(stitched.shape)
     #stitched = np.insert(stitched,0, img1, axis=1)
 
     # bsp mit Y: der oberste Wert ist 0. Wenn ein Bild im negativen bereich ist muss trotzdem 0 raus kommen
     # d.h. offsetY-minY
-
+    stitched[:, :, 3] = 1
     for (img, offX, offY) in ImageList:
-        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 0] = img[:, :, 0] * img[:, :, 3]
-        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 1] = img[:, :, 1] * img[:, :, 3]
-        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 2] = img[:, :, 2] * img[:, :, 3]
+        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 0] += img[:, :, 0] * img[:, :, 3]
+        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 1] += img[:, :, 1] * img[:, :, 3]
+        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 2] += img[:, :, 2] * img[:, :, 3]
         stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 3] += img[:,:,3]
 
-        stitched[:, :, 0] = stitched[:, :, 0] / (stitched[:, :, 3] / 255.0)
-        stitched[:, :, 1] = stitched[:, :, 1] / (stitched[:, :, 3] / 255.0)
-        stitched[:, :, 2] = stitched[:, :, 2] / (stitched[:, :, 3] / 255.0)
-        stitched[:, :, 3] = 255
-    return stitched
+    stitched[:, :, 0] = stitched[:, :, 0] / (stitched[:, :, 3] / 255.0)
+    stitched[:, :, 1] = stitched[:, :, 1] / (stitched[:, :, 3] / 255.0)
+    stitched[:, :, 2] = stitched[:, :, 2] / (stitched[:, :, 3] / 255.0)
+    stitched[:, :, 3] = 255
+    stitched[:,:,0:3] = stitched[:,:,0:3] / (np.max(stitched)/255)
+    sti = np.asarray(stitched, dtype=np.uint8)
+
+    return sti
 
 def getBcord(aVec, bx ,by ):
     #x = (aVec[0,0]*bx + aVec[1,0]*by + aVec[2,0])/( aVec[6,0] * bx + aVec[7,0]*by + 1)
@@ -129,11 +141,7 @@ def transformation(A, a0, src, method, rgb):
     #print("DH:", dh, "DW", dw)
 
     # distanz von der Bildmitte entspricht gewichtung (eigentlich Alpha Kanal.)
-    distance = np.ones((sh, sw))
-    it = np.nditer(distance, op_flags=['readwrite'], flags=['multi_index'])
-    while not it.finished:
-        it[0] = (0.5-math.fabs(it.multi_index[0] - (sh/2))/sh) * (0.5-math.fabs(it.multi_index[1] - (sw/2))/sw) * 4
-        it.iternext()
+
 
     #meshgrid für Bildkopie vorbereiten
     dx, dy = np.meshgrid(np.arange(dw), np.arange(dh))
@@ -195,9 +203,9 @@ def transformation(A, a0, src, method, rgb):
                                    a1[mask_flattened] * src[p4[1][mask_flattened], [p4[0][mask_flattened]]]
     # Fill invalid coordinates.
     if rgb:
-        dest[dy[~mask], dx[~mask]] = [0, 0, 0, 255]
+        dest[dy[~mask], dx[~mask]] = [0, 0, 0, 0]
     else:
-        dest[dy[~mask], dx[~mask]] = [0, 255]
+        dest[dy[~mask], dx[~mask]] = [0, 0]
 
     return (dest, offsetX, offsetY)
 
@@ -232,6 +240,9 @@ def main():
     img2 = scipy.misc.imread(name="imgs\IMG_20170504_131710_010.jpg")
     img3 = scipy.misc.imread(name="imgs\IMG_20170504_131710_020.jpg")
 
+    img1 = np.asarray(img1,dtype=np.float32)
+    img2 = np.asarray(img2, dtype=np.float32)
+    img3 = np.asarray(img3, dtype=np.float32)
 
 
     bp1.append((2696, 646))
@@ -239,7 +250,7 @@ def main():
     bp1.append((3931, 2340))
     bp1.append((2678, 2481))
 
-    wpDiv = 6
+    wpDiv = 1
     wp.append((0, 0))
     wp.append((2950/wpDiv, 50/wpDiv))
     wp.append((2970/wpDiv, 3900/wpDiv))
