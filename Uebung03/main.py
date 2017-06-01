@@ -3,20 +3,36 @@ import scipy.misc
 import scipy
 import matplotlib.pyplot as plt
 from time import *
-
+from operator import itemgetter
 import math
-
+#import cv2
 from skimage.feature.tests.test_orb import img
+print("Calculatin Distance Pic")
+t1 = clock()
 
-print("Calculating alpha factor")
 sh = 3480
-sw=4640
+sw = 4640
+
 distance = np.ones((sh, sw))
-it = np.nditer(distance, op_flags=['readwrite'], flags=['multi_index'])
-while not it.finished:
-    it[0] = (0.5 - math.fabs(it.multi_index[0] - (sh / 2)) / sh) * (
-    0.5 - math.fabs(it.multi_index[1] - (sw / 2)) / sw) * 4 * 255
-    it.iternext()
+xLine = np.ones((1, sw))
+yLine = np.ones((sh, 1))
+for i in range(sw):
+    xLine[0,i] = ((sw / 2) - i)
+
+for i in range(sh):
+    yLine[i,0] = ((sh / 2) - i)
+
+xLine = (sw/2)-xLine.__abs__()
+yLine = (sh/2)-yLine.__abs__()
+
+xLine /= (sh/2)
+yLine /= (sw/2)
+
+distance[range(sh)] = xLine
+
+distance[:, range(sw)] *= yLine
+t2 = clock()
+print("Calculatin Distance done in ", t2-t1)
 
 def stitch(ImageList):
     #img1, img2, offsetX1, offsetX2, offsetY1, offsetY2
@@ -250,7 +266,7 @@ def main():
     bp1.append((3931, 2340))
     bp1.append((2678, 2481))
 
-    wpDiv = 1
+    wpDiv = 6
     wp.append((0, 0))
     wp.append((2950/wpDiv, 50/wpDiv))
     wp.append((2970/wpDiv, 3900/wpDiv))
