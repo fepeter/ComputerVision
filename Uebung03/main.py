@@ -13,9 +13,9 @@ t1 = clock()
 sh = 3480
 sw = 4640
 
-distance = np.ones((sh, sw))
-xLine = np.ones((1, sw))
-yLine = np.ones((sh, 1))
+distance = np.ones((sh, sw),dtype=np.float)
+xLine = np.ones((1, sw),dtype=np.float)
+yLine = np.ones((sh, 1),dtype=np.float)
 for i in range(sw):
     xLine[0,i] = ((sw / 2) - i)
 
@@ -28,10 +28,15 @@ yLine = (sh/2)-yLine.__abs__()
 xLine /= (sh/2)
 yLine /= (sw/2)
 
-distance[range(sh)] = xLine
+distance[range(sh)] = xLine * 255
 
 distance[:, range(sw)] *= yLine
 t2 = clock()
+
+plt.gray()
+plt.imshow(distance)
+plt.show()
+
 print("Calculatin Distance done in ", t2-t1)
 
 def stitch(ImageList):
