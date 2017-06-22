@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from time import *
 from operator import itemgetter
 import math
-#import cv2
+import cv2
 from skimage.feature.tests.test_orb import img
 print("Calculatin Distance Pic")
 t1 = clock()
@@ -33,13 +33,14 @@ distance[range(sh)] = xLine * 255
 distance[:, range(sw)] *= yLine
 t2 = clock()
 
-plt.gray()
-plt.imshow(distance)
-plt.show()
+#plt.gray()
+#plt.imshow(distance)
+#plt.show()
 
 print("Calculatin Distance done in ", t2-t1)
 
 def stitch(ImageList):
+    print("Stichting")
     #img1, img2, offsetX1, offsetX2, offsetY1, offsetY2
     #Create Image in size of img1 and img2
 
@@ -74,7 +75,8 @@ def stitch(ImageList):
         if (minX > value):
             minX = value
 
-    stitched = np.zeros((maxY - minY, maxX - minX, 4), dtype=np.float32) # 4 Dimensionen, r,g,b,a
+    stitched = np.zeros((maxY - minY, maxX - minX, 4), dtype=np.float32)  # 4 Dimensionen, r,g,b,a
+    stitchedHigh = np.zeros((maxY - minY, maxX - minX, 3), dtype=np.float32)  # 4 Dimensionen, r,g,b,a
 
     #print(stitched.shape)
     #stitched = np.insert(stitched,0, img1, axis=1)
@@ -82,17 +84,30 @@ def stitch(ImageList):
     # bsp mit Y: der oberste Wert ist 0. Wenn ein Bild im negativen bereich ist muss trotzdem 0 raus kommen
     # d.h. offsetY-minY
     stitched[:, :, 3] = 1
-    for (img, offX, offY) in ImageList:
-        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 0] += img[:, :, 0] * img[:, :, 3]
-        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 1] += img[:, :, 1] * img[:, :, 3]
-        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 2] += img[:, :, 2] * img[:, :, 3]
-        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 3] += img[:,:,3]
+    stitchedHigh[:, :, :] = 0
+    for (img, offX, offY, blur, high) in ImageList:
+        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 0] += blur[:, :, 0] * img[:, :, 3]
+        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 1] += blur[:, :, 1] * img[:, :, 3]
+        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 2] += blur[:, :, 2] * img[:, :, 3]
+        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 3] += blur[:, :, 3]
+
+    for (img, offX, offY, blur, high) in ImageList:
+        stitchedHigh[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 0] = np.maximum(stitchedHigh[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 0], high[:, :, 0])
+        stitchedHigh[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 1] = np.maximum(stitchedHigh[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 1], high[:, :, 1])
+        stitchedHigh[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 2] = np.maximum(stitchedHigh[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 2], high[:, :, 2])
+
 
     stitched[:, :, 0] = stitched[:, :, 0] / (stitched[:, :, 3] / 255.0)
     stitched[:, :, 1] = stitched[:, :, 1] / (stitched[:, :, 3] / 255.0)
     stitched[:, :, 2] = stitched[:, :, 2] / (stitched[:, :, 3] / 255.0)
+
+
+    stitched[:, :, 0:3] += stitchedHigh
+    del stitchedHigh
     stitched[:, :, 3] = 255
-    stitched[:,:,0:3] = stitched[:,:,0:3] / (np.max(stitched)/255)
+    stitched[:, :, 0:3] = stitched[:, :, 0:3] / (np.max(stitched) / 255)
+
+
     sti = np.asarray(stitched, dtype=np.uint8)
 
     return sti
@@ -228,7 +243,11 @@ def transformation(A, a0, src, method, rgb):
     else:
         dest[dy[~mask], dx[~mask]] = [0, 0]
 
-    return (dest, offsetX, offsetY)
+    blur = cv2.GaussianBlur(np.asarray(dest, dtype=np.float32) / 255.0, (11, 11), 0)
+    high = np.asarray((np.asarray(blur, dtype=np.float32) - np.asarray(dest, dtype=np.float32) / 255.0).__abs__(),
+                      dtype=np.float32)
+
+    return (dest, offsetX, offsetY, blur, high)
 
 def buildMat(WorldPointlist, PicPointlist):
     M = []
@@ -249,6 +268,12 @@ def buildMat(WorldPointlist, PicPointlist):
 
     return (M, vx, a)
 
+def loadIMGasNP(path):
+    tmp = scipy.misc.imread(name=path)
+    return np.asarray(tmp,dtype=np.float32)
+
+
+
 def main():
     print("Aufgabe 3")
     wp =[]
@@ -257,25 +282,25 @@ def main():
     bp1 = []
     bp3 = []
 
-    img1 = scipy.misc.imread(name="imgs\IMG_20170504_131710_001.jpg")
-    img2 = scipy.misc.imread(name="imgs\IMG_20170504_131710_010.jpg")
-    img3 = scipy.misc.imread(name="imgs\IMG_20170504_131710_020.jpg")
-
-    img1 = np.asarray(img1,dtype=np.float32)
-    img2 = np.asarray(img2, dtype=np.float32)
-    img3 = np.asarray(img3, dtype=np.float32)
-
-
-    bp1.append((2696, 646))
-    bp1.append((4140, 634))
-    bp1.append((3931, 2340))
-    bp1.append((2678, 2481))
+    bp4 = []
+    bp5 = []
+    bp6 = []
+    bp7 = []
 
     wpDiv = 6
     wp.append((0, 0))
     wp.append((2950/wpDiv, 50/wpDiv))
     wp.append((2970/wpDiv, 3900/wpDiv))
     wp.append((40/wpDiv, 4290/wpDiv))
+
+    img1 = loadIMGasNP("imgs\IMG_20170504_131710_001.jpg")
+    img2 = loadIMGasNP("imgs\IMG_20170504_131710_010.jpg")
+    img3 = loadIMGasNP("imgs\IMG_20170504_131710_020.jpg")
+
+    bp1.append((2696, 646))
+    bp1.append((4140, 634))
+    bp1.append((3931, 2340))
+    bp1.append((2678, 2481))
 
     bp2.append((2031, 727))
     bp2.append((3427, 743))
@@ -287,53 +312,123 @@ def main():
     bp3.append((2800, 2447))
     bp3.append((1578, 2598))
 
-    #plt.imshow(img1)
-    #x, y = zip(*bp1)
-    #plt.scatter(x, y, c='r', s=20)
+    wp2 = []
+    wpDiv2 = 8
+    wp2.append((0, 0))
+    wp2.append((2950 / wpDiv2, 0 / wpDiv2))
+    wp2.append((2910 / wpDiv2, 3000 / wpDiv2))
+    wp2.append((40 / wpDiv2, 3000 / wpDiv2))
+
+
+    img4 = loadIMGasNP("neue\IMG_20170622_110401.jpg")
+    img5 = loadIMGasNP("neue\IMG_20170622_110407.jpg")
+    img6 = loadIMGasNP("neue\IMG_20170622_110415.jpg")
+
+
+    bp4.append((2945,862))
+    bp4.append((4358,662))
+    bp4.append((4309,1581))
+    bp4.append((3050,1559))
+
+    bp5.append((1641,914))
+    bp5.append((2863,815))
+    bp5.append((2819,1615))
+    bp5.append((1737,1606))
+
+    bp6.append((263,873))
+    bp6.append((1638,824))
+    bp6.append((1598,1628))
+    bp6.append((385,1648))
+
+
+
+
+
+    #plt.gray()
+    #plt.imshow(np.asarray(img5, dtype=np.uint8))
+    # x, y = zip(*bp4)
+    # plt.scatter(x, y, c='r', s=20)
     #plt.show()
 
+    #plt.gray()
+    #plt.imshow(np.asarray(img6, dtype=np.uint8))
+    # x, y = zip(*bp4)
+    # plt.scatter(x, y, c='r', s=20)
+    #plt.show()
 
-    t1 = clock()
-    (M1, _, a1) = buildMat(wp, bp1)
-    t2 = clock()
-
-    print("Build Mat in ", t2-t1)
-
-    #print(a1)
-    (M2, _, a2) = buildMat(wp, bp2)
-    (M3, _, a3) = buildMat(wp, bp3)
-
-    ImageList = []
-    t1=clock()
-    ImageList.append( transformation(a1, 0, img1, 'nn', True))
-    t2 = clock()
-    print("Transform IMG1 in ", t2 - t1)
-
-    t1 = clock()
-    ImageList.append( transformation(a2, 0, img2, 'nn', True))
-    t2 = clock()
-    print("Transform IMG2 in ", t2 - t1)
-
-    t1 = clock()
-    ImageList.append(transformation(a3, 0, img3, 'nn', True))
-    t2 = clock()
-    print("Transform IMG3 in ", t2 - t1)
+    if(False):
 
 
+        t1 = clock()
+        (M1, _, a1) = buildMat(wp, bp1)
+        t2 = clock()
+
+        print("Build Mat in ", t2-t1)
+
+        #print(a1)
+        (M2, _, a2) = buildMat(wp, bp2)
+        (M3, _, a3) = buildMat(wp, bp3)
+
+        ImageList = []
+        t1=clock()
+        ImageList.append( transformation(a1, 0, img1, 'nn', True))
+        t2 = clock()
+        print("Transform IMG1 in ", t2 - t1)
+
+        t1 = clock()
+        ImageList.append( transformation(a2, 0, img2, 'nn', True))
+        t2 = clock()
+        print("Transform IMG2 in ", t2 - t1)
+
+        t1 = clock()
+        ImageList.append(transformation(a3, 0, img3, 'nn', True))
+        t2 = clock()
+        print("Transform IMG3 in ", t2 - t1)
 
 
 
 
-    t1 = clock()
-    #stitched = stitch(newImg1, newImg2, new, offsetX1, offsetX2, offsetY1, offsetY2)
-    stitched = stitch(ImageList)
-    t2 = clock()
-    print("Stitch IMGs in ", t2 - t1)
+
+
+        t1 = clock()
+        #stitched = stitch(newImg1, newImg2, new, offsetX1, offsetX2, offsetY1, offsetY2)
+        stitched = stitch(ImageList)
+        t2 = clock()
+        print("Stitch IMGs in ", t2 - t1)
+
+        plt.gray()
+        plt.imshow(stitched)
+        plt.show()
+
+        del(stitched)
+        del(img1)
+        del(img2, img3)
+
+    (M4, _, a4) = buildMat(wp2, bp4)
+    (M5, _, a5) = buildMat(wp2, bp5)
+    (M6, _, a6) = buildMat(wp2, bp6)
+
+
+    NewImageList = []
+    NewImageList.append(transformation(a4, 0, img4, 'nn', True))
+    NewImageList.append(transformation(a5, 0, img5, 'nn', True))
+    #NewImageList.append(transformation(a6, 0, img6, 'nn', True))
+    #NewImageList.append(transformation(a7, 0, img7, 'nn', True))
+
+
+    #for item in NewImageList:
+    #    plt.imshow(np.asarray(item[0], dtype=np.uint8))
+    #    plt.show()
+
+
+
+    stichted2 = stitch(NewImageList)
+
+    fertig = stichted2[0:3000, 5000:]
 
     plt.gray()
-    plt.imshow(stitched)
+    plt.imshow(fertig)
     plt.show()
-
 
 if __name__ == "__main__":
     main()
