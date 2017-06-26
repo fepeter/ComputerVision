@@ -313,7 +313,7 @@ def main():
     bp3.append((1578, 2598))
 
     wp2 = []
-    wpDiv2 = 8
+    wpDiv2 = 6
     wp2.append((0, 0))
     wp2.append((2950 / wpDiv2, 0 / wpDiv2))
     wp2.append((2910 / wpDiv2, 3000 / wpDiv2))
