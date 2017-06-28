@@ -1,6 +1,9 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import sys
+from PIL import Image
+import os
 
 
 sift = cv2.xfeatures2d.SIFT_create(contrastThreshold = 0.06)
@@ -48,13 +51,13 @@ def process_image(imagename,resultname,params="--edge-thresh 10 --peak-thresh 5"
 def read_features_from_file(filename):
     """ Read feature properties and return in matrix form. """
     
-    f = loadtxt(filename)
+    f = np.loadtxt(filename)
     return f[:,:4],f[:,4:] # feature locations, descriptors
 
 
 def write_features_to_file(filename,locs,desc):
     """ Save feature location and descriptor to file. """
-    savetxt(filename,hstack((locs,desc)))
+    np.savetxt(filename,np.hstack((locs,desc)))
     
 
 def plot_features(im,locs,circle=False):
@@ -62,9 +65,9 @@ def plot_features(im,locs,circle=False):
         locs (row, col, scale, orientation of each feature). """
     
     def draw_circle(c,r):
-        t = np.arange(0,1.01,.01)*2*pi
-        x = r*cos(t) + c[0]
-        y = r*sin(t) + c[1]
+        t = np.arange(0,1.01,.01)*2*np.pi
+        x = r*np.cos(t) + c[0]
+        y = r*np.sin(t) + c[1]
         plt.plot(x,y,'b',linewidth=2)
     
     plt.imshow(im)
