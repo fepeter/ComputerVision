@@ -47,32 +47,31 @@ t2 = clock()
 print("Calculatin Distance done in ", t2-t1)
 
 def ransac(Iteration, MatchA, MatchB, Inlier, SizeConsenusSet):
+    print("Ransac")
     MatchA = np.asarray(MatchA)
     MatchB = np.asarray(MatchB)
-    indexes = list(np.random.random_integers(0, len(MatchB)-1, Iteration*4))
+    indexes = list(np.random.random_integers(0, len(MatchA) - 1, Iteration * 4))
     homographien = []
     for i in range(Iteration):
         tmpA = buildMat(MatchA[indexes[i*4:i*4+4]], MatchB[indexes[i*4:i*4+4]])
         homographien.append(tmpA[2])
-    distanzen = []
+    distanzen = [0]*Iteration
     for i in range(Iteration):
+        print("Ransac ", i, Iteration)
         tmpA = homographien[i]
-        distanzen.append(0)
-        for j in range(Iteration):
-            tmpB = homographien[j]
-            if CalcEuclidicDistance(tmpA, tmpB) < Inlier:
-                distanzen[i] += 1
+        distanzen[i] = CalcEuclidicDistance(tmpA, MatchA[:,0:2], MatchB[:,0:2])
 
 
+    maxIndex = np.argmin(distanzen)
 
+    #plt.hist(distanzen, bins=500)
+    #plt.show()
 
+    return homographien[maxIndex]
 
-
-
-
-
-def CalcEuclidicDistance(MatchA, MatchB):
-    return np.sum(np.power(MatchA-MatchB,2))
+def CalcEuclidicDistance(homo, ptsA, ptsB):
+    calcPtsB = np.asarray(getBcord(homo,ptsA[:,0],ptsA[:,1])).T
+    return np.sum(np.power(calcPtsB-ptsB,2))
 
 
 def stitch(ImageList):
@@ -337,15 +336,15 @@ def main():
     bp4.append((4358,662))
     bp4.append((4309,1581))
     bp4.append((3050,1559))
-    bp4.append((, ))
-    bp4.append((, ))
+    bp4.append((2310,1142 ))
+    bp4.append((2417,1548))
 
     bp5.append((1641,914))
     bp5.append((2863,815))
     bp5.append((2819,1615))
     bp5.append((1737,1606))
-    bp5.append((, ))
-    bp5.append((, ))
+    bp5.append((968,1168 ))
+    bp5.append((1079,1602 ))
 
     bp6.append((263,873))
     bp6.append((1638,824))
@@ -357,38 +356,82 @@ def main():
 
 
     plt.gray()
-    plt.imshow(np.asarray(img4, dtype=np.uint8))
-    x, y = zip(*bp4)
-    plt.scatter(x, y, c='r', s=20)
-    plt.show()
+    #plt.imshow(np.asarray(img4, dtype=np.uint8))
+    #x, y = zip(*bp4)
+    #plt.scatter(x, y, c='r', s=20)
+    #plt.show()
 
     plt.gray()
-    plt.imshow(np.asarray(img5, dtype=np.uint8))
-    # x, y = zip(*bp4)
-    # plt.scatter(x, y, c='r', s=20)
-    plt.show()
-
-
+    #plt.imshow(np.asarray(img5, dtype=np.uint8))
+    #x, y = zip(*bp5)
+    #plt.scatter(x, y, c='r', s=20)
+    #plt.show()
 
     (M4, _, a4) = buildMat(wp2, bp4)
     (M5, _, a5) = buildMat(wp2, bp5)
     (M6, _, a6) = buildMat(wp2, bp6)
 
+    if(True):
+        pts4, ds4 = sift.detect_and_compute(img4)
+        pts5, ds5 = sift.detect_and_compute(img5)
 
-    pts4, ds4 = sift.detect_and_compute(img4)
-    #pts5, ds5 = sift.detect_and_compute(img5)
+        keep = pts4[:, 2] > 4.0
+        pts4 = pts4[keep]
+        ds4 = ds4[keep]
+        print(len(ds4))
+        keep = pts5[:, 2] > 4.0
+        pts5 = pts5[keep]
+        ds5 = ds5[keep]
+        print(len(ds5))
+        scores = sift.match(ds4,ds5)
+        #sift.plot_matches(img4,img5,pts4,pts5,scores,show_below=True)
+        #plt.show()
+        keep = scores > 0
+        matchPtsA = pts4[keep,0:2]
+        matchPtsB = pts5[scores,0:2]
+        matchPtsB = matchPtsB[keep]
 
-    #ransac(4, pts4, pts5, .2, 0)
-    sift.plot_features(img4, pts4, True)
-    plt.show()
+        homographie = ransac(80, matchPtsA,matchPtsB, 100, 0)
+
+        im3 = sift.appendimages(img4, img5)
+        # show image
+        plt.imshow(im3)
+
+        # draw lines for matches
+        cols1 = img4.shape[1]
+        for x, y in matchPtsA[0:100]:
+            newx, newy = getBcord(homographie, x, y)
+            plt.plot([x, cols1 + newx], [y, newy], 'c')
+
+        for x, y in matchPtsB[0:100]:
+            plt.scatter(cols1 + x, y, c='r', s=20)
+
+        plt.axis('off')
+        plt.show()
+
+    else:
+        homographie = ransac(4, bp4, bp5, .2, 0)
+
+        im3 = sift.appendimages(img4, img5)
+        # show image
+        plt.imshow(im3)
+
+        # draw lines for matches
+        cols1 = img4.shape[1]
+        for x, y in bp4:
+            newx, newy = getBcord(homographie, x, y)
+            plt.plot([x, cols1 + newx],[y, newy], 'c')
+
+        for x, y in bp5:
+            plt.scatter(cols1 + x, y, c='r', s=20)
+
+        plt.axis('off')
+        plt.show()
+        #sift.plot_features(img4, pts4, True)
+    #plt.show()
     #plt.gray()
     #plt.imshow(fertig)
     #plt.show()
-
-MatchA = [(1,4), (2,3), (4,5), (6,7), (8,9), (10,11), (1,2), (3,4)]
-MatchB = [(7,6), (1,2), (3,4), (5,9), (9,10), (11,12), (2,3), (4,5)]
-
-ransac(2, MatchA, MatchB, 0.2, 0)
 
 if __name__ == "__main__":
     main()
