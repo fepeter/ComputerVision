@@ -12,40 +12,6 @@ from skimage.feature.tests.test_orb import img
 import sift
 import collections
 
-
-
-print("Calculatin Distance Pic")
-t1 = clock()
-
-sh = 3480
-sw = 4640
-
-distance = np.ones((sh, sw),dtype=np.float)
-xLine = np.ones((1, sw),dtype=np.float)
-yLine = np.ones((sh, 1),dtype=np.float)
-for i in range(sw):
-    xLine[0,i] = ((sw / 2) - i)
-
-for i in range(sh):
-    yLine[i,0] = ((sh / 2) - i)
-
-xLine = (sw/2)-xLine.__abs__()
-yLine = (sh/2)-yLine.__abs__()
-
-xLine /= (sh/2)
-yLine /= (sw/2)
-
-distance[range(sh)] = xLine * 255
-
-distance[:, range(sw)] *= yLine
-t2 = clock()
-
-#plt.gray()
-#plt.imshow(distance)
-#plt.show()
-
-print("Calculatin Distance done in ", t2-t1)
-
 def ransac(Iteration, MatchA, MatchB, Inlier, SizeConsenusSet):
     print("Ransac")
     MatchA = np.asarray(MatchA)
@@ -73,79 +39,6 @@ def CalcEuclidicDistance(homo, ptsA, ptsB):
     calcPtsB = np.asarray(getBcord(homo,ptsA[:,0],ptsA[:,1])).T
     return np.sum(np.power(calcPtsB-ptsB,2))
 
-
-def stitch(ImageList):
-    print("Stichting")
-    #img1, img2, offsetX1, offsetX2, offsetY1, offsetY2
-    #Create Image in size of img1 and img2
-
-    #Get Max/Min Values
-    maxX=0
-    maxY=0
-
-    #getMaxX
-    for item in ImageList:
-        value = item[0].shape[0] + item[2]
-        if(maxY < value ):
-            maxY = value
-
-    # getMaxX
-    for item in ImageList:
-        value = item[0].shape[1] + item[1]
-        if (maxX < value):
-            maxX = value
-
-    minY = 0
-    minX = 0
-
-    # getMinX
-    for item in ImageList:
-        value = item[2]
-        if (minY > value):
-            minY = value
-
-    # getMinX
-    for item in ImageList:
-        value = item[1]
-        if (minX > value):
-            minX = value
-
-    stitched = np.zeros((maxY - minY, maxX - minX, 4), dtype=np.float32)  # 4 Dimensionen, r,g,b,a
-    stitchedHigh = np.zeros((maxY - minY, maxX - minX, 3), dtype=np.float32)  # 4 Dimensionen, r,g,b,a
-
-    #print(stitched.shape)
-    #stitched = np.insert(stitched,0, img1, axis=1)
-
-    # bsp mit Y: der oberste Wert ist 0. Wenn ein Bild im negativen bereich ist muss trotzdem 0 raus kommen
-    # d.h. offsetY-minY
-    stitched[:, :, 3] = 1
-    stitchedHigh[:, :, :] = 0
-    for (img, offX, offY, blur, high) in ImageList:
-        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 0] += blur[:, :, 0] * img[:, :, 3]
-        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 1] += blur[:, :, 1] * img[:, :, 3]
-        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 2] += blur[:, :, 2] * img[:, :, 3]
-        stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 3] += blur[:, :, 3]
-
-    for (img, offX, offY, blur, high) in ImageList:
-        stitchedHigh[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 0] = np.maximum(stitchedHigh[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 0], high[:, :, 0])
-        stitchedHigh[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 1] = np.maximum(stitchedHigh[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 1], high[:, :, 1])
-        stitchedHigh[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 2] = np.maximum(stitchedHigh[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 2], high[:, :, 2])
-
-
-    stitched[:, :, 0] = stitched[:, :, 0] / (stitched[:, :, 3] / 255.0)
-    stitched[:, :, 1] = stitched[:, :, 1] / (stitched[:, :, 3] / 255.0)
-    stitched[:, :, 2] = stitched[:, :, 2] / (stitched[:, :, 3] / 255.0)
-
-
-    stitched[:, :, 0:3] += stitchedHigh
-    del stitchedHigh
-    stitched[:, :, 3] = 255
-    stitched[:, :, 0:3] = stitched[:, :, 0:3] / (np.max(stitched) / 255)
-
-
-    sti = np.asarray(stitched, dtype=np.uint8)
-
-    return sti
 
 def getBcord(aVec, bx ,by ):
     #x = (aVec[0,0]*bx + aVec[1,0]*by + aVec[2,0])/( aVec[6,0] * bx + aVec[7,0]*by + 1)
@@ -176,113 +69,6 @@ def getOcord(aVec, bx, by):
     y = (b1 * bx + b2 * by + b3) / (c1 * bx + c2 * by + 1)
     return (x,y)
 
-def transformation(A, a0, src, method, rgb):
-    # Bildmittelpunkt
-    ox = 0#src.shape[1] // 2
-    oy = 0#src.shape[0] // 2
-
-    if rgb:
-        sh, sw, sd = src.shape
-    else:
-        sh, sw = src.shape
-
-    # Eckpunkte des transformierten Bildes berechnen
-    x = np.array([0, sw, sw, 0]) - ox
-    y = np.array([0, 0, sh, sh]) - oy
-    print(x, y)
-
-    corners = getOcord(A, x, y)
-    #print(getOcord(A, x, y))
-    #TODO
-    #corners = getBcord()
-    #print("corners", corners)
-    #print(corners[0])
-    cx = corners[0] + ox
-    cy = corners[1] + oy
-    #print("cx", cx, "cy", cy)
-
-    # Groesse des neuen Bildes
-    dw, dh = (int(np.ceil(c.max() - c.min())) for c in (cx, cy))
-    offsetX, offsetY = (int(np.ceil(c.min())) for c in (cx, cy))
-    print(offsetX, offsetY)
-    #print(getBcord(A, 0 + cx.min(), 0+ cy.min()))
-    #print(getBcord(A, dw + cx.min(), 0+ cy.min()))
-    #print(getBcord(A, dw + cx.min(), dh+ cy.min()))
-    #print(getBcord(A, 0 + cx.min(), dh+ cy.min()))
-    #print("DH:", dh, "DW", dw)
-
-    # distanz von der Bildmitte entspricht gewichtung (eigentlich Alpha Kanal.)
-
-
-    #meshgrid für Bildkopie vorbereiten
-    dx, dy = np.meshgrid(np.arange(dw), np.arange(dh))
-
-    (sx, sy) = getBcord(A, dx + cx.min(), dy + cy.min())
-
-
-    if method == 'nn':
-        sx, sy = sx.round().astype(int), sy.round().astype(int)
-    else:
-        vx = sx.flatten()
-        vy = sy.flatten()
-
-        v = np.vstack((vx, vy))
-
-        p1 = np.floor(np.vstack((vx, vy))).astype('int16')
-        p2 = np.vstack((p1[0] + 1, p1[1] + 0))
-        p3 = np.vstack((p1[0] + 0, p1[1] + 1))
-        p4 = np.vstack((p1[0] + 1, p1[1] + 1))
-
-        a1 = np.prod(np.abs(p1 - v), axis=0)
-        a2 = np.prod(np.abs(p2 - v), axis=0)
-        a3 = np.prod(np.abs(p3 - v), axis=0)
-        a4 = np.prod(np.abs(p4 - v), axis=0)
-
-    # Maske für gültige Koordinaten
-    mask = (0 <= sx) & (sx < sw) & (0 <= sy) & (sy < sh)
-
-    if rgb:
-        dest = np.empty(shape=(dh, dw, 4), dtype=src.dtype)
-    else:
-        dest = np.empty(shape=(dh, dw, 2), dtype=src.dtype)
-
-    if method == 'nn':
-        if rgb:
-            dest[dy[mask], dx[mask], 0:3] = src[sy[mask], sx[mask]]
-            dest[dy[mask], dx[mask], 3] = distance[sy[mask], sx[mask]]
-        else:
-            dest[dy[mask], dx[mask], 0] = src[sy[mask], sx[mask],:]
-            dest[dy[mask], dx[mask], 1] = distance[sy[mask], sx[mask]]
-
-    else:
-        mask_flattened = (0 <= p1[0]) & (p1[0] < sw) & (0 <= p1[1]) & (p1[1] < sh) & \
-                         (0 <= p2[0]) & (p2[0] < sw) & (0 <= p2[1]) & (p2[1] < sh) & \
-                         (0 <= p3[0]) & (p3[0] < sw) & (0 <= p3[1]) & (p3[1] < sh) & \
-                         (0 <= p4[0]) & (p4[0] < sw) & (0 <= p4[1]) & (p4[1] < sh)
-
-        mask = np.reshape(mask_flattened, dest.shape[0:2])
-
-        if rgb:
-            a1 = np.vstack((a1, a1, a1)).T
-            a2 = np.vstack((a2, a2, a2)).T
-            a3 = np.vstack((a3, a3, a3)).T
-            a4 = np.vstack((a4, a4, a4)).T
-
-        dest[dy[mask], dx[mask]] = a4[mask_flattened] * src[p1[1][mask_flattened], [p1[0][mask_flattened]]] + \
-                                   a3[mask_flattened] * src[p2[1][mask_flattened], [p2[0][mask_flattened]]] + \
-                                   a2[mask_flattened] * src[p3[1][mask_flattened], [p3[0][mask_flattened]]] + \
-                                   a1[mask_flattened] * src[p4[1][mask_flattened], [p4[0][mask_flattened]]]
-    # Fill invalid coordinates.
-    if rgb:
-        dest[dy[~mask], dx[~mask]] = [0, 0, 0, 0]
-    else:
-        dest[dy[~mask], dx[~mask]] = [0, 0]
-
-    blur = cv2.GaussianBlur(np.asarray(dest, dtype=np.float32) / 255.0, (11, 11), 0)
-    high = np.asarray((np.asarray(blur, dtype=np.float32) - np.asarray(dest, dtype=np.float32) / 255.0).__abs__(),
-                      dtype=np.float32)
-
-    return (dest, offsetX, offsetY, blur, high)
 
 def buildMat(WorldPointlist, PicPointlist):
     M = []
@@ -312,20 +98,10 @@ def loadIMGasNP(path):
 
 def main():
     print("Aufgabe 4")
+    Handpunkte = True
     bp4= []
     bp5= []
     bp6= []
-
-
-
-
-    wp2 = []
-    wpDiv2 = 6
-    wp2.append((0, 0))
-    wp2.append((2950 / wpDiv2, 0 / wpDiv2))
-    wp2.append((2910 / wpDiv2, 3000 / wpDiv2))
-    wp2.append((40 / wpDiv2, 3000 / wpDiv2))
-
 
     img4 = loadIMGasNP("neue\IMG_20170622_110401.jpg")
     img5 = loadIMGasNP("neue\IMG_20170622_110407.jpg")
@@ -367,11 +143,8 @@ def main():
     #plt.scatter(x, y, c='r', s=20)
     #plt.show()
 
-    (M4, _, a4) = buildMat(wp2, bp4)
-    (M5, _, a5) = buildMat(wp2, bp5)
-    (M6, _, a6) = buildMat(wp2, bp6)
 
-    if(True):
+    if(Handpunkte):
         pts4, ds4 = sift.detect_and_compute(img4)
         pts5, ds5 = sift.detect_and_compute(img5)
 
@@ -408,7 +181,6 @@ def main():
 
         plt.axis('off')
         plt.show()
-
     else:
         homographie = ransac(4, bp4, bp5, .2, 0)
 
@@ -428,10 +200,6 @@ def main():
         plt.axis('off')
         plt.show()
         #sift.plot_features(img4, pts4, True)
-    #plt.show()
-    #plt.gray()
-    #plt.imshow(fertig)
-    #plt.show()
 
 if __name__ == "__main__":
     main()
