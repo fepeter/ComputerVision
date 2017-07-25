@@ -283,7 +283,7 @@ def stitch(ImageList):
 
     # bsp mit Y: der oberste Wert ist 0. Wenn ein Bild im negativen bereich ist muss trotzdem 0 raus kommen
     # d.h. offsetY-minY
-    stitched[:, :, 3] = 1
+    stitched[:, :, 3] = 0.0000001
     stitchedHigh[:, :, :] = 0
     for (img, offX, offY, blur, high) in ImageList:
         stitched[offY - minY: img.shape[0] + offY - minY, offX - minX: img.shape[1] + offX - minX, 0] += blur[:, :, 0] * img[:, :, 3]
@@ -304,8 +304,8 @@ def stitch(ImageList):
 
     stitched[:, :, 0:3] += stitchedHigh
     del stitchedHigh
-    stitched[:, :, 3] = 255
-    stitched[:, :, 0:3] = stitched[:, :, 0:3] / (np.max(stitched) / 255)
+    stitched[:, :, 3] = 255.0
+    stitched[:, :, 0:3] = stitched[:, :, 0:3] / (np.max(stitched) / 255.0)
 
 
     sti = np.asarray(stitched, dtype=np.uint8)
@@ -363,6 +363,7 @@ def main():
 
 
     if(Handpunkte):
+        print("Handpunkte")
         pts4, ds4 = sift.detect_and_compute(img4)
         pts5, ds5 = sift.detect_and_compute(img5)
 
@@ -382,7 +383,7 @@ def main():
         matchPtsB = pts5[scores,0:2]
         matchPtsB = matchPtsB[keep]
 
-        homographie = ransac(80, matchPtsA,matchPtsB, 100, 0)
+        homographie = ransac(2000, matchPtsA,matchPtsB, 70, 0)
 
         im3 = sift.appendimages(img4, img5)
         # show image
@@ -400,8 +401,8 @@ def main():
         plt.axis('off')
         plt.show()
         ImageList = []
-        ImageList.append(transformation(homographie, img4, 'nn', False))
-        ImageList.append(transformation(homographie, img5, 'nn', False))
+        ImageList.append(transformation(np.matrix([1,0,0,0,1,0,0,0]).T, img4rgb, 'nn', True))
+        ImageList.append(transformation(homographie, img5rgb, 'nn', True))
 
         stitched = stitch(ImageList)
 
@@ -437,8 +438,8 @@ def main():
         #sift.plot_features(img4, pts4, True)
 
         ImageList = []
-        ImageList.append(transformation(homographie, 0, img4rgb, 'nn', True))
-        ImageList.append(transformation(homographie, 0, img5rgb, 'nn', True))
+        ImageList.append(transformation([1,0,0,0,1,0,0,0], img4rgb, 'nn', True))
+        ImageList.append(transformation(homographie, img5rgb, 'nn', True))
 
         stitched = stitch(ImageList)
 
